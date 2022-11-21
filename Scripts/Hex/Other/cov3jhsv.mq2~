@@ -1,0 +1,137 @@
+// PlayerController
+using System.Collections;
+using UnityEngine;
+
+[System.Serializable]
+public enum lookType
+{
+	lookX_PlayerY,
+	lookXY_PlayerY
+}
+
+[RequireComponent(typeof(CharacterController))]
+[AddComponentMenu("Event Framework/Player Controller", 0)]
+public class PlayerController : MonoBehaviour
+{
+	[Header("Player Controller")]
+	public float normalSpeed = 0.2f;
+	public float fastSpeed = 0.4f;
+	public float jumpSpeed = 2.5f;
+	public float jumpDuration = 1f;
+	[Space(5f)]
+	public bool allowJump = false;
+	public float gravity = -9.8f;
+	public bool includeDeltaTime = true;
+	public bool gravityAcceleration;
+	[Space(5f)]
+	public Transform look;
+	public lookType lookBehaviour;
+	public float maxLookAngle = 60f;
+	public float sensitivityX = 10f;
+	public float sensitivityY = 8f;
+	public bool enableAimSensitivity;
+	public float aimSensitivity = 3.5f;
+	[Space(5)]
+	public Camera cam;
+	public bool force_pause = false;
+
+
+	private CharacterController character;
+	private bool halt;
+	private float rotationX;
+	private float rotationY;
+	private float jumpPower;
+	private Vector3 move;
+	private bool crouch = false;
+
+	private void Start()
+	{
+		rotationX = base.transform.eulerAngles.x;
+		rotationY = base.transform.eulerAngles.y;
+		if (character == null)
+		{
+			character = GetComponent<CharacterController>();
+		}
+	}
+
+	private void Update()
+	{
+		if (Input.GetKeyDown(KeyCode.Escape))
+		{
+			halt = ((!halt) ? true : false);
+		}
+		if (!halt  && !force_pause)
+		{
+			if (Input.GetKeyDown(KeyCode.Space) && character.isGrounded && allowJump)
+			{
+				StartCoroutine("Jump");
+			}
+			if (Input.GetKeyDown(KeyCode.LeftControl))
+			{
+				setCrouch(crouch ? false : true);
+			}
+			rotationY += Input.GetAxis("Mouse X") * ((!enableAimSensitivity) ? sensitivityY : (Input.GetMouseButton(1) ? aimSensitivity : sensitivityY));
+			rotationX += Input.GetAxis("Mouse Y") * ((!enableAimSensitivity) ? sensitivityX : (Input.GetMouseButton(1) ? aimSensitivity : sensitivityX));
+			rotationX = Mathf.Clamp(rotationX, 0f - maxLookAngle, maxLookAngle);
+			switch (lookBehaviour)
+			{
+			case lookType.lookXY_PlayerY:
+				look.eulerAngles = new Vector3(0f - rotationX, rotationY, 0f);
+				base.transform.eulerAngles = new Vector3(base.transform.eulerAngles.x, look.eulerAngles.y, base.transform.eulerAngles.z);
+				break;
+			case lookType.lookX_PlayerY:
+				look.localEulerAngles = new Vector3(0f - rotationX, 0f, 0f);
+				base.transform.eulerAngles = new Vector3(base.transform.eulerAngles.x, rotationY, base.transform.eulerAngles.z);
+				break;
+			}
+		}
+	}
+
+	private void setCrouch(bool b)
+    {
+		crouch = b;
+		if (crouch)
+        {
+
+        }
+		else
+        {
+			character.height = 6;
+			character.center = new Vector3();
+        }
+    }
+
+    private void FixedUpdate()
+    {
+		move = (base.transform.forward * Input.GetAxis("Vertical") + base.transform.right * Input.GetAxis("Horizontal")) * (Input.GetKey(KeyCode.LeftShift) ? fastSpeed : normalSpeed);
+		if (allowJump)
+			move.y += jumpPower + gravity * (includeDeltaTime ? Time.deltaTime : 1f) + (gravityAcceleration ? (gravity * (includeDeltaTime ? Time.deltaTime : 1f)) : 0f);
+		character.Move(move);
+	}
+
+    private IEnumerator Jump()
+	{
+		_ = jumpSpeed;
+		float[] changeFactor = new float[5]
+		{
+			jumpSpeed / -4f * 0f + jumpSpeed,
+			jumpSpeed / -4f * 0.25f + jumpSpeed,
+			jumpSpeed / -4f * 1f + jumpSpeed,
+			jumpSpeed / -4f * 2.25f + jumpSpeed,
+			jumpSpeed / -4f * 4f + jumpSpeed
+		};
+		jumpPower = 0f;
+		for (int i = 0; i < 5; i++)
+		{
+			character.Move(new Vector3(0f, changeFactor[i], 0f));
+			yield return new WaitForSeconds(jumpDuration / 5f);
+		}
+		jumpPower = 0f;
+		yield return null;
+	}
+
+	public GameObject getCamera()
+    {
+		return cam.gameObject;
+    }
+}
